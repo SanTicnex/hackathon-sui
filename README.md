@@ -17,8 +17,12 @@ Copy the example and set real values:
 cp .env.example .env
 ```
 Key variables:
-- `PORT`, `EUID_PACKAGE_ID`, `AUTHORITY_ADDRESS`, `USE_REAL_WALLET`
-- `NEXT_PUBLIC_IDENTITY_BACKEND_URL` (in Docker it already targets `http://identity-backend:4000`)
+- `EUID_PACKAGE_ID` – Move package id where `euid_identity` is published.
+- `AUTHORITY_ADDRESS` – Sui address authorized to mint verified identities.
+- `BACKEND_MNEMONIC` – mnemonic used by the backend signer (or set `BACKEND_PRIVATE_KEY` instead).
+- `NEXT_PUBLIC_IDENTITY_BACKEND_URL` (in Docker it already targets `http://identity-backend:4000`).
+
+`.env.example` is the template; create your own `.env` from it and keep `.env` out of version control.
 
 ## How to run with Docker
 ```bash
