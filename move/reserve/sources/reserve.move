@@ -11,6 +11,10 @@ module reserve::reserve {
     const STATE_RESERVE: u8 = 1;
     const STATE_SOLD: u8 = 2;
 
+    const STATE_RESERVATION_ENABLE: u8 = 0;
+    const STATE_RESERVATION_USED: u8 = 1;
+    const STATE_RESERVATION_EXPIRED: u8 = 2;
+
     // --- Errores ---
     const EPropertyNoEnable: u64 = 1;
     const EReservationNoMatch: u64 = 2;
@@ -52,7 +56,8 @@ module reserve::reserve {
     public struct Reservation has key, store {
         id: UID,
         property_id: ID,
-        expiration_date: u64 // Milliseconds
+        expiration_date: u64, // Milliseconds
+        state: u8
     }
 
     // --- Events ---
@@ -150,7 +155,8 @@ module reserve::reserve {
         let reservation = Reservation {
             id: object::new(ctx),
             property_id: object::uid_to_inner(&property.id),
-            expiration_date: clock.timestamp_ms() + 86400000
+            expiration_date: clock.timestamp_ms() + 86400000,
+            state: STATE_RESERVATION_ENABLE,
         };
 
         event::emit(PropertyReserved { 
@@ -171,10 +177,8 @@ module reserve::reserve {
         assert!(object::uid_to_inner(&property.id) == reservation.property_id, EReservationNoMatch);
         assert!(property.state == STATE_RESERVE, EInvalidState);
 
-        let Reservation { id, property_id: _, expiration_date: _ } = reservation;
-        object::delete(id);
-
         property.state = STATE_SOLD;
+        reservation.state = STATE_RESERVATION_USED;
 
         event::emit(PropertySold { 
             property_id: object::uid_to_inner(&property.id)
@@ -189,10 +193,8 @@ module reserve::reserve {
     ) {
         assert!(object::uid_to_inner(&property.id) == reservation.property_id, EReservationNoMatch);
        
-        let Reservation { id, property_id: _, expiration_date: _ } = reservation;
-        object::delete(id);
-
         property.state = STATE_ENABLE;
+        reservation.state = STATE_RESERVATION_EXPIRED;
         property.reservationDate = option::none();
     }
 }
