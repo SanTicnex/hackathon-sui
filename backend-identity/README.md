@@ -4,14 +4,14 @@ Express/TypeScript backend that simulates an EUDI/OpenID4VP KYC flow and mints `
 
 ## Requirements
 - Node 18+
-- pnpm/npm/yarn
+- npm (project scripts are written for npm)
 
 ## Quick setup
 ```bash
 cp .env.example .env
 # set EUID_PACKAGE_ID and AUTHORITY_ADDRESS for your deployed package
-pnpm install     # or npm install / yarn
-pnpm dev         # or npm run dev
+npm install
+npm run dev      # or npm run start after npm run build
 ```
 
 Key `.env` variables:

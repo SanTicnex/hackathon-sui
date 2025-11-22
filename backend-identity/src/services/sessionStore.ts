@@ -1,3 +1,5 @@
+// NOTE: Sessions live only in memory. If the process/container restarts, all sessions are lost.
+// For production, back this store with Redis/DB or another persistent layer.
 import { v4 as uuid } from 'uuid';
 
 type Session = {

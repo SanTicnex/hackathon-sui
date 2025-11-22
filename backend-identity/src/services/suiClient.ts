@@ -64,18 +64,17 @@ export async function createVerifiedBuyerOnChain({
     ],
   });
 
-  const response = await client.signAndExecuteTransactionBlock({
+  const response = await client.signAndExecuteTransaction({
     signer: authorityKeypair,
     transaction: tx,
     options: {
       showEffects: true,
       showEvents: true,
     },
-    requestType: 'WaitForLocalExecution',
   });
 
   const eventType = `${packageId}::euid_identity::VerifiedBuyerCreated`;
-  const evt = response.events?.find((e) => e.type === eventType);
+  const evt = response.events?.find((e: any) => e.type === eventType);
   const verifiedObjectIdFromEvent =
     (evt?.parsedJson as { verified_object_id?: string } | null)
       ?.verified_object_id ?? null;
@@ -83,7 +82,7 @@ export async function createVerifiedBuyerOnChain({
   const created = response.effects?.created ?? [];
   const verifiedObjectId =
     verifiedObjectIdFromEvent ??
-    created.find((obj) => obj.owner && 'AddressOwner' in obj.owner)
+    created.find((obj: any) => obj.owner && 'AddressOwner' in obj.owner)
       ?.reference?.objectId ??
     null;
   const issuedAt =
