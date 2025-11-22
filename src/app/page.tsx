@@ -34,10 +34,13 @@ import {
   Wallet,
   Lock,
   Plus,
+  List,
+  UserPlus,
 } from "lucide-react";
 
 // --- CONFIGURACIÓN ---
 const CONSTANTS = {
+  WALLET_DAPP: process.env.NEXT_PUBLIC_WALLET_DAPP!,
   PACKAGE_ID: process.env.NEXT_PUBLIC_PACKAGE_ID!,
   MODULE: process.env.NEXT_PUBLIC_MODULE!,
   CLOCK_ID: process.env.NEXT_PUBLIC_CLOCK_ID!,
@@ -101,6 +104,19 @@ export default function SuiEstateDApp() {
       id: CONSTANTS.WHITELIST_ID,
       options: { showContent: true },
     });
+  const tableId =
+    whitelistObject?.data?.content?.fields?.allowed_promoters?.fields?.id?.id;
+  const { data: promotersData, isLoading: loadingPromoters } =
+    useSuiClientQuery(
+      "getDynamicFields",
+      {
+        parentId: tableId || "0x0",
+      },
+      {
+        enabled: !!tableId,
+      },
+    );
+  const whiteList = promotersData?.data?.map((field) => field.name.value) || [];
 
   // --- HANDLERS ---
 
@@ -431,28 +447,37 @@ export default function SuiEstateDApp() {
 
         <Tabs defaultValue="marketplace" className="w-full">
           <div className="flex justify-center mb-8">
-            <TabsList className="grid w-full max-w-xl grid-cols-4 bg-slate-200/50 p-1">
+            <TabsList className="flex w-full max-w-xl bg-slate-200/50 p-1">
               <TabsTrigger
                 value="marketplace"
-                className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                className="flex-1 data-[state=active]:bg-white data-[state=active]:shadow-sm"
               >
                 <ShoppingBag className="w-4 h-4 mr-2" /> Mercado
               </TabsTrigger>
               <TabsTrigger
                 value="my-reservations"
-                className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                className="flex-1 data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                hidden={
+                  whiteList.includes(account?.address ?? "") ||
+                  account?.address === CONSTANTS.WALLET_DAPP
+                }
               >
                 <Key className="w-4 h-4 mr-2" /> Mis Reservas
               </TabsTrigger>
               <TabsTrigger
                 value="admin-create"
-                className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                className="flex-1 data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                hidden={
+                  !whiteList.includes(account?.address ?? "") ||
+                  account?.address === CONSTANTS.WALLET_DAPP
+                }
               >
-                <Home className="w-4 h-4 mr-2" /> Crear
+                <Home className="w-4 h-4 mr-2" /> Crear inmueble
               </TabsTrigger>
               <TabsTrigger
                 value="admin-whitelist"
-                className="data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                className="flex-1 data-[state=active]:bg-white data-[state=active]:shadow-sm"
+                hidden={account?.address !== CONSTANTS.WALLET_DAPP}
               >
                 <Lock className="w-4 h-4 mr-2" /> Whitelist
               </TabsTrigger>
@@ -582,6 +607,7 @@ export default function SuiEstateDApp() {
           <TabsContent
             value="my-reservations"
             className="animate-in fade-in slide-in-from-bottom-4 duration-500"
+            hidden={whiteList.includes(account?.address ?? "")}
           >
             {!account ? (
               notConnectedView(
@@ -676,6 +702,7 @@ export default function SuiEstateDApp() {
           <TabsContent
             value="admin-create"
             className="animate-in fade-in slide-in-from-bottom-4 duration-500"
+            hidden={!whiteList.includes(account?.address ?? "")}
           >
             {!account ? (
               notConnectedView(
@@ -899,6 +926,7 @@ export default function SuiEstateDApp() {
           <TabsContent
             value="admin-whitelist"
             className="animate-in fade-in slide-in-from-bottom-4 duration-500"
+            hidden={account?.address !== CONSTANTS.WALLET_DAPP}
           >
             {!account ? (
               notConnectedView(
@@ -906,7 +934,9 @@ export default function SuiEstateDApp() {
                 "Conecta la wallet que posee el AdminCap para gestionar la lista de promotores.",
               )
             ) : (
-              <div className="max-w-3xl mx-auto">
+              <div className="max-w-3xl mx-auto space-y-6">
+                {" "}
+                {/* <--- Añadido space-y-6 aquí para separar elementos */}
                 <Card className="border-slate-200 shadow-md">
                   <CardHeader className="border-b border-slate-100 pb-4">
                     <CardTitle className="flex items-center gap-2">
@@ -920,6 +950,7 @@ export default function SuiEstateDApp() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-6 space-y-6">
+                    {/* SECCIÓN 1: FORMULARIO PARA AÑADIR */}
                     <div className="grid gap-2">
                       <Label htmlFor="promoter-address">
                         Dirección del Promotor a Añadir
@@ -943,13 +974,51 @@ export default function SuiEstateDApp() {
                             <Loader2 className="w-4 h-4 animate-spin" />
                           ) : (
                             <>
-                              <Plus className="w-4 h-4 mr-1" /> Añadir
+                              <UserPlus className="w-4 h-4 mr-1" /> Añadir
                             </>
                           )}
                         </Button>
                       </div>
                     </div>
 
+                    {/* SECCIÓN 2: LISTADO DE PROMOTORES AÑADIDO AQUÍ 👇 */}
+                    <Card className="shadow-none border border-slate-200">
+                      <CardHeader className="border-b border-slate-100">
+                        <h3 className="text-lg font-semibold text-slate-800 flex items-center">
+                          <List className="w-5 h-5 mr-2 text-slate-500" />
+                          Promotores en Whitelist ({whiteList.length})
+                        </h3>
+                        <CardDescription>
+                          Direcciones autorizadas para crear propiedades.
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="pt-6">
+                        {loadingPromoters ? (
+                          <div className="flex items-center justify-center py-6 text-slate-400">
+                            <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                            Cargando lista de promotores...
+                          </div>
+                        ) : whiteList.length > 0 ? (
+                          <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                            {whiteList.map((address) => (
+                              <div
+                                key={String(address)}
+                                className="bg-slate-50 text-slate-700 p-3 rounded-md text-sm font-mono break-all border border-slate-100 shadow-sm transition-shadow hover:shadow-md"
+                              >
+                                {String(address)}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-slate-500 italic py-4 text-center">
+                            No hay promotores registrados en la Whitelist.
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                    {/* FIN DEL LISTADO DE PROMOTORES 👆 */}
+
+                    {/* SECCIÓN 3: REQUISITO DE AUTORIDAD (MANTENER) */}
                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 text-sm">
                       <h4 className="font-semibold text-blue-800 flex items-center mb-2">
                         <Key className="w-4 h-4 mr-2" />
