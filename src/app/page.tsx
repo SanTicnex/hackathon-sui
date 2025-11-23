@@ -17,6 +17,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ReservationModal } from "@/components/reservation-modal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -59,6 +60,7 @@ const getPropertyImage = (id: string) => {
 };
 
 export default function SuiEstateDApp() {
+  const [isReservationModalOpen, setReservationModalOpen] = useState(false);
   const account = useCurrentAccount();
   const suiClient = useSuiClient();
   const { mutate: signAndExecute, isPending: isSigning } =
@@ -388,11 +390,8 @@ export default function SuiEstateDApp() {
                 obj.data.content?.dataType === "moveObject",
             );
 
-            // Mapear los objetos para exponer los campos internos
             const structuredProperties = validProperties.map((obj) => ({
-              // Metadatos de Sui (ID, versión)
               id: obj.data?.objectId,
-              // Contenido de la estructura Move (name, price, bedrooms, etc.)
               ...obj.data?.content?.fields,
             }));
 
@@ -555,7 +554,7 @@ export default function SuiEstateDApp() {
                           </div>
                           <div className="text-right">
                             <p className="text-xl font-bold text-blue-600">
-                              {property.price || "0"} MIST
+                              {Number(property.price ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
                             </p>
                             <p className="text-xs text-slate-400">Reserva</p>
                           </div>
@@ -591,13 +590,17 @@ export default function SuiEstateDApp() {
                               Propiedad
                             </div>
                           ) : (
-                            // Opción 2: No es el propietario (o no está conectado), muestra el botón Reservar.
-                            <Button
-                              className="w-full bg-slate-900 hover:bg-blue-600 transition-colors"
-                              onClick={() => handleReserve(property.id.id)}
-                            >
-                              Reservar Propiedad{" "}
-                            </Button>
+                            <>
+                                <Button
+                                  className="w-full bg-slate-900 hover:bg-blue-600 transition-colors"
+                                  onClick={() => setReservationModalOpen(true)}
+                                >
+                                  pre-reserve
+                                </Button><ReservationModal
+                                  isOpen={isReservationModalOpen}
+                                  onClose={() => setReservationModalOpen(false)}
+                                  onVerify={() => {} }
+                                  onReserve={() => { handleReserve(property.id.id)} } /></>
                           )}{" "}
                         </CardFooter>
                       )}
