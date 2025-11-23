@@ -1,15 +1,14 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useCurrentAccount } from "@mysten/dapp-kit";
 import { Button } from "@/components/ui/button";
 import { KycStepWizard } from "./KycStepWizard";
 import { CheckCircle2, Loader2, MapPin, Wallet } from "lucide-react";
+import {
+  checkKycStatus,
+  startKycSession,
+} from "@/services/identityClient";
 
 type SelectedProperty = {
   id: { id: string } | string;
@@ -28,9 +27,9 @@ interface PreReserveModalProps {
 }
 
 const STEPS = [
-  { id: 1, label: "Verificar identidad", description: "EUDI / OpenID4VP" },
-  { id: 2, label: "Confirmar pre-reserva" },
-  { id: 3, label: "Resultado" },
+  { id: 0, label: "Verificar identidad" },
+  { id: 1, label: "Confirmar pre-reserva" },
+  { id: 2, label: "Completado" },
 ];
 
 export function PreReserveModal({
@@ -38,11 +37,17 @@ export function PreReserveModal({
   onClose,
   selectedProperty,
 }: PreReserveModalProps) {
+  const account = useCurrentAccount();
   const [step, setStep] = useState(0);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
-  const verificationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [kycSessionId, setKycSessionId] = useState<string | null>(null);
+  const [kycError, setKycError] = useState<string | null>(null);
   const confirmationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fallbackVerificationTimer =
+    useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const propertyTitle = useMemo(
     () => selectedProperty?.name || selectedProperty?.title || "Propiedad",
@@ -66,30 +71,44 @@ export function PreReserveModal({
     return "Por confirmar";
   }, [selectedProperty?.price, selectedProperty?.priceLabel]);
 
-  const resetFlow = useCallback(() => {
-    setStep(0);
-    setIsVerifying(false);
-    setIsConfirming(false);
-    if (verificationTimer.current) {
-      clearTimeout(verificationTimer.current);
-      verificationTimer.current = null;
+  const propertyIdValue = useMemo(() => {
+    if (!selectedProperty?.id) {
+      return undefined;
     }
-    if (confirmationTimer.current) {
-      clearTimeout(confirmationTimer.current);
-      confirmationTimer.current = null;
-    }
-  }, []);
+    return typeof selectedProperty.id === "string"
+      ? selectedProperty.id
+      : selectedProperty.id.id;
+  }, [selectedProperty?.id]);
 
   useEffect(() => {
     if (!isOpen) {
-      resetFlow();
+      setStep(0);
+      setIsVerifying(false);
+      setIsVerified(false);
+      setIsConfirming(false);
+      setKycSessionId(null);
+      setKycError(null);
+      if (confirmationTimer.current) {
+        clearTimeout(confirmationTimer.current);
+        confirmationTimer.current = null;
+      }
+      if (pollingTimer.current) {
+        clearTimeout(pollingTimer.current);
+        pollingTimer.current = null;
+      }
+      if (fallbackVerificationTimer.current) {
+        clearTimeout(fallbackVerificationTimer.current);
+        fallbackVerificationTimer.current = null;
+      }
     }
-  }, [isOpen, resetFlow]);
+  }, [isOpen]);
 
   useEffect(
     () => () => {
-      if (verificationTimer.current) clearTimeout(verificationTimer.current);
       if (confirmationTimer.current) clearTimeout(confirmationTimer.current);
+      if (pollingTimer.current) clearTimeout(pollingTimer.current);
+      if (fallbackVerificationTimer.current)
+        clearTimeout(fallbackVerificationTimer.current);
     },
     [],
   );
@@ -98,13 +117,91 @@ export function PreReserveModal({
     return null;
   }
 
-  const handleSimulateVerification = () => {
-    if (isVerifying) return;
+  const startPollingStatus = (sessionId: string, attemptsLeft = 3) => {
+    if (pollingTimer.current) {
+      clearTimeout(pollingTimer.current);
+    }
+
+    pollingTimer.current = setTimeout(async () => {
+      try {
+        const status = await checkKycStatus(sessionId);
+
+        if (status.status === "verified") {
+          setIsVerified(true);
+          setStep(1);
+          return;
+        }
+
+        if (status.status === "rejected") {
+          setKycError("La verificación fue rechazada. Intenta nuevamente.");
+          return;
+        }
+
+        if (attemptsLeft <= 1) {
+          // TODO: reemplazar este fallback con eventos reales de OpenID4VP/EUDI.
+          if (fallbackVerificationTimer.current) {
+            clearTimeout(fallbackVerificationTimer.current);
+          }
+          fallbackVerificationTimer.current = setTimeout(() => {
+            setIsVerified(true);
+            setStep(1);
+          }, 1000);
+          return;
+        }
+
+        startPollingStatus(sessionId, attemptsLeft - 1);
+      } catch (error) {
+        console.error("[kyc] status polling failed", error);
+        setKycError(
+          error instanceof Error
+            ? error.message
+            : "No se pudo comprobar el estado de tu verificación.",
+        );
+      }
+    }, 2000);
+  };
+
+  const handleVerifyIdentity = async () => {
+    if (isVerifying || isVerified) return;
+    if (!account?.address) {
+      setKycError("Conecta tu wallet para iniciar la verificación.");
+      return;
+    }
+
+    setKycError(null);
     setIsVerifying(true);
-    verificationTimer.current = setTimeout(() => {
+    try {
+      const { sessionId } = await startKycSession({
+        walletAddress: account.address,
+        propertyId: propertyIdValue,
+      });
+
+      setKycSessionId(sessionId);
+
+      const status = await checkKycStatus(sessionId);
+
+      if (status.status === "verified") {
+        setIsVerified(true);
+        setStep(1);
+        return;
+      }
+
+      if (status.status === "rejected") {
+        setKycError("La verificación fue rechazada. Intenta nuevamente.");
+        return;
+      }
+
+      startPollingStatus(sessionId);
+    } catch (error) {
+      console.error("[kyc] verification failed", error);
+      setKycError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo iniciar la verificación.",
+      );
+    } finally {
       setIsVerifying(false);
-      setStep(1);
-    }, 1500);
+    }
   };
 
   const handleConfirmReservation = () => {
@@ -117,7 +214,20 @@ export function PreReserveModal({
   };
 
   const handleClose = () => {
-    resetFlow();
+    setStep(0);
+    setIsVerifying(false);
+    setIsVerified(false);
+    setIsConfirming(false);
+    setKycSessionId(null);
+    setKycError(null);
+    if (pollingTimer.current) {
+      clearTimeout(pollingTimer.current);
+      pollingTimer.current = null;
+    }
+    if (fallbackVerificationTimer.current) {
+      clearTimeout(fallbackVerificationTimer.current);
+      fallbackVerificationTimer.current = null;
+    }
     onClose();
   };
 
@@ -130,20 +240,32 @@ export function PreReserveModal({
               Verificar identidad
             </h3>
             <p className="text-sm text-slate-600">
-              Aquí conectaremos el flujo EUDI / OpenID4VP con el backend de
-              identidad. Por ahora es una simulación.
+              Aquí conectaremos OpenID4VP + EUDI para validar tu identidad antes
+              de reservar.
             </p>
           </div>
+          {isVerified && (
+            <div className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700">
+              Identidad verificada ✅
+            </div>
+          )}
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-sm font-medium text-slate-700">
-              Cuando esté listo, este paso iniciará la autenticación segura con
-              tu wallet EUDI y validará los credenciales requeridos por el
-              promotor.
+              Este paso se conectará con el backend de identidad y tu wallet
+              EUDI para compartir la presentación verificable requerida.
             </p>
           </div>
+          {kycSessionId && !isVerified && (
+            <p className="text-xs text-slate-500">
+              Sesión iniciada: {kycSessionId.slice(0, 8)}...
+            </p>
+          )}
+          {kycError && (
+            <p className="text-sm text-red-600">{kycError}</p>
+          )}
           <Button
             className="w-full bg-blue-600 hover:bg-blue-700"
-            onClick={handleSimulateVerification}
+            onClick={handleVerifyIdentity}
             disabled={isVerifying}
           >
             {isVerifying ? (
@@ -152,7 +274,7 @@ export function PreReserveModal({
                 Verificando...
               </>
             ) : (
-              "Simular verificación KYC"
+              "Verificar identidad"
             )}
           </Button>
         </div>

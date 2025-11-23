@@ -18,8 +18,8 @@ export function KycStepWizard({ currentStep, steps }: KycStepWizardProps) {
     <div className="space-y-6">
       <div className="flex flex-col gap-6 md:flex-row">
         {steps.map((step, index) => {
-          const isActive = currentStep === index;
-          const isCompleted = currentStep > index;
+          const isActive = currentStep === step.id;
+          const isCompleted = currentStep > step.id;
 
           return (
             <div key={step.id} className="flex items-center md:flex-1">
@@ -37,7 +37,7 @@ export function KycStepWizard({ currentStep, steps }: KycStepWizardProps) {
                       "border-slate-200 bg-white text-slate-400",
                   )}
                 >
-                  {step.id}
+                  {step.id + 1}
                 </div>
                 <div className="space-y-1">
                   <p
