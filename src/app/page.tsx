@@ -51,12 +51,12 @@ const CONSTANTS = {
 
 const getPropertyImage = (id: string) => {
 
-  const floorplans = ["f14baf4e-6fef-4375-9484-6a0fdb3b0cd2", "add1cd80-270d-486e-865d-bd15c20fc6f2","0c4fd9c6-8711-4f1a-8e4c-cbcff5b0f34b"];
+  const floorplans = ["cc2c1ac4365b82095824ad0440550c92", "7cc6d46f2c468f5b1d3dfdf23770c667","90c31d84077e7b6837a82024d54f2169"];
 
   // If an explicit id is provided, use it; otherwise pick a random floorplan id
  const imageId = floorplans[Math.floor(Math.random() * floorplans.length)];
 
-  return `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/${imageId}/medium.webp`;
+  return `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/${imageId}.jpg`;
 };
 
 export default function SuiEstateDApp() {
