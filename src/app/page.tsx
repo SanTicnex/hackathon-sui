@@ -37,6 +37,23 @@ import {
   List,
   UserPlus,
 } from "lucide-react";
+import { PreReserveModal } from "@/app/components/PreReserveModal";
+
+type PropertyIdField = {
+  id: string;
+};
+
+type PropertyItem = {
+  id: PropertyIdField;
+  promoter: string;
+  state: number;
+  name?: string;
+  physical_address?: string;
+  price?: string | number;
+  bedrooms?: number;
+  bathrooms?: number;
+  [key: string]: unknown;
+};
 
 // --- CONFIGURACIÓN ---
 const CONSTANTS = {
@@ -77,9 +94,13 @@ export default function SuiEstateDApp() {
     floorplans: "",
   });
 
-  const [properties, setProperties] = useState<any[]>([]);
+  const [properties, setProperties] = useState<PropertyItem[]>([]);
   const [newPromoterAddress, setNewPromoterAddress] = useState("");
   const [isAddingPromoter, setIsAddingPromoter] = useState(false);
+  const [isPreReserveOpen, setIsPreReserveOpen] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState<PropertyItem | null>(
+    null,
+  );
 
   // --- QUERIES ---
 
@@ -316,6 +337,11 @@ export default function SuiEstateDApp() {
     );
   };
 
+  const handlePreReserveClick = (propertyData: PropertyItem) => {
+    setSelectedProperty(propertyData);
+    setIsPreReserveOpen(true);
+  };
+
   // 4. Manejador para FINALIZAR/CANCELAR RESERVA
   const handleManageReservation = (
     action: "finalize_reservation" | "cancel_reservation",
@@ -391,10 +417,10 @@ export default function SuiEstateDApp() {
             // Mapear los objetos para exponer los campos internos
             const structuredProperties = validProperties.map((obj) => ({
               // Metadatos de Sui (ID, versión)
-              id: obj.data?.objectId,
+              id: obj.data?.content?.fields?.id,
               // Contenido de la estructura Move (name, price, bedrooms, etc.)
               ...obj.data?.content?.fields,
-            }));
+            })) as PropertyItem[];
 
             // 3. Actualizar el estado de la UI
             setProperties(structuredProperties);
@@ -502,7 +528,8 @@ export default function SuiEstateDApp() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {properties.map((property, index) => {
-                  const bgImage = getPropertyImage(property.id.id);
+                  const propertyObjectId = property.id?.id;
+                  const bgImage = getPropertyImage(propertyObjectId ?? "");
 
                   const connectedAddress = account?.address?.toLowerCase();
                   const promoterAddress = property.promoter?.toLowerCase();
@@ -594,7 +621,7 @@ export default function SuiEstateDApp() {
                             // Opción 2: No es el propietario (o no está conectado), muestra el botón Reservar.
                             <Button
                               className="w-full bg-slate-900 hover:bg-blue-600 transition-colors"
-                              onClick={() => handleReserve(property.id.id)}
+                              onClick={() => handlePreReserveClick(property)}
                             >
                               Reservar Propiedad{" "}
                             </Button>
@@ -1050,6 +1077,14 @@ export default function SuiEstateDApp() {
           </TabsContent>
         </Tabs>
       </main>
+      <PreReserveModal
+        isOpen={isPreReserveOpen}
+        onClose={() => {
+          setIsPreReserveOpen(false);
+          setSelectedProperty(null);
+        }}
+        selectedProperty={selectedProperty ?? undefined}
+      />
     </div>
   );
 }
