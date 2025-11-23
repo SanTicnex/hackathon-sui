@@ -110,3 +110,6 @@ temp/
 
 # Turbo
 .turbo
+
+frontend/move/counter/publish-testnet.json
+scripts/

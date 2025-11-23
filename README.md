@@ -41,6 +41,18 @@ Client dApp using the following tools:
 For a full guide on how to build this dApp from scratch, visit this
 [guide](http://docs.sui.io/guides/developer/app-examples/e2e-counter#frontend).
 
+## Automated testnet workflow
+
+Run these helper scripts from the repo root to deploy the Move package, update env files, and validate the identity backend:
+
+1. `bash scripts/deploy_move_testnet.sh`
+2. `node scripts/update_env_from_publish.js`
+3. `node scripts/setup_backend_identity_env.js`
+4. `cd backend-identity && npm install && npm run dev`
+5. `bash scripts/check_backend_health.sh`
+
+> **Important:** `BACKEND_MNEMONIC` must only be populated locally. Never commit the real mnemonic or share it outside your secure environment.
+
 ## Deploying your Move code
 
 ### Install Sui cli
