@@ -367,7 +367,7 @@ export const MAINNET_COUNTER_PACKAGE_ID = "0xTODO";
 
 #### **Update Your Package ID**
 
-Replace the `TESTNET_COUNTER_PACKAGE_ID` with your actual package ID from Step 4. Since the `counter` package now includes the `euid_identity` module, use the same package ID for both `TESTNET_COUNTER_PACKAGE_ID` and `TESTNET_EUID_PACKAGE_ID` in your `.env` file:
+Replace the `TESTNET_COUNTER_PACKAGE_ID` with your actual package ID from Step 4:
 
 ```typescript
 export const TESTNET_COUNTER_PACKAGE_ID = "0xYOUR_ACTUAL_PACKAGE_ID_HERE";
@@ -377,8 +377,6 @@ export const TESTNET_COUNTER_PACKAGE_ID = "0xYOUR_ACTUAL_PACKAGE_ID_HERE";
 ```typescript
 export const TESTNET_COUNTER_PACKAGE_ID = "0xcea82fb908b9d9566b1c7977491e76901ed167978a1ecd6053a994881c0ea9b5";
 ```
-
-**Note:** Copy this same package ID to both `COUNTER_PACKAGE_ID` and `EUID_PACKAGE_ID` in your `.env.example` file, as they refer to the same deployed package.
 
 #### **How the Frontend Uses This ID**
 

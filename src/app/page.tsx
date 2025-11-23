@@ -729,7 +729,7 @@ export default function SuiEstateDApp() {
                     </div>
                   </div>
                 </div>
-
+                
                 {/* Formulario */}
                 <Card className="md:col-span-2 border-slate-200 shadow-md">
                   <CardHeader>

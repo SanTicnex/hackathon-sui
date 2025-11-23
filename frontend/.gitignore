@@ -110,8 +110,3 @@ temp/
 
 # Turbo
 .turbo
-
-# Env backups and nested env files
-.env.backup-*
-**/.env
-**/.env.local

@@ -1,0 +1,31 @@
+version: "3.9"
+
+services:
+  identity-backend:
+    # Simulated KYC API exposed in the identity backend
+    build:
+      context: ./backend-identity
+      dockerfile: Dockerfile
+    container_name: identity-backend
+    env_file:
+      - .env
+    environment:
+      - PORT=4000
+    ports:
+      - "4000:4000"
+
+  sui-frontend:
+    # Next.js dApp that consumes the identity backend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sui-frontend
+    env_file:
+      - .env
+    environment:
+      # Within the Docker network, the frontend uses the backend service hostname
+      - NEXT_PUBLIC_IDENTITY_BACKEND_URL=http://identity-backend:4000
+    depends_on:
+      - identity-backend
+    ports:
+      - "3000:3000"
