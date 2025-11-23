@@ -39,7 +39,7 @@ import {
   UserPlus,
 } from "lucide-react";
 
-// --- CONFIGURACIÓN ---
+// --- CONFIGURATION ---
 const CONSTANTS = {
   WALLET_DAPP: process.env.NEXT_PUBLIC_WALLET_DAPP!,
   PACKAGE_ID: process.env.NEXT_PUBLIC_PACKAGE_ID!,
@@ -50,11 +50,10 @@ const CONSTANTS = {
 };
 
 const getPropertyImage = (id: string) => {
-
   const floorplans = ["cc2c1ac4365b82095824ad0440550c92", "7cc6d46f2c468f5b1d3dfdf23770c667","90c31d84077e7b6837a82024d54f2169"];
 
   // If an explicit id is provided, use it; otherwise pick a random floorplan id
- const imageId = floorplans[Math.floor(Math.random() * floorplans.length)];
+  const imageId = floorplans[Math.floor(Math.random() * floorplans.length)];
 
   return `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/${imageId}.jpg`;
 };
@@ -85,7 +84,7 @@ export default function SuiEstateDApp() {
 
   // --- QUERIES ---
 
-  // 1. Obtener Eventos (propiedades creadas)
+  // 1. Get Events (Created Properties)
   const {
     data: events,
     isLoading: loadingEvents,
@@ -96,7 +95,7 @@ export default function SuiEstateDApp() {
     },
   });
 
-  // 2. Obtener Mis Reservas
+  // 2. Get My Reservations
   const { data: myReservations, refetch: refetchReservations } =
     useSuiClientQuery("getOwnedObjects", {
       owner: account?.address || "",
@@ -106,7 +105,7 @@ export default function SuiEstateDApp() {
       options: { showContent: true },
     });
 
-  // 3. Obtener el objeto Whitelist (solo para mostrar su ID en la UI)
+  // 3. Get Whitelist Object (to show ID and content in UI)
   const { data: whitelistObject, refetch: refetchWhitelist } =
     useSuiClientQuery("getObject", {
       id: CONSTANTS.WHITELIST_ID,
@@ -128,9 +127,9 @@ export default function SuiEstateDApp() {
 
   // --- HANDLERS ---
 
-  // 1. Manejador para CREAR INMUEBLE (Firma del Cliente + Whitelist Check)
+  // 1. Handler to CREATE PROPERTY (Client Signature + Whitelist Check)
   const handleCreate = () => {
-    if (!account) return alert("Conecta tu wallet para crear inmuebles.");
+    if (!account) return alert("Connect your wallet to create properties.");
 
     if (
       !formData.name ||
@@ -144,7 +143,7 @@ export default function SuiEstateDApp() {
       !formData.currency ||
       Number(formData.price) <= 0
     ) {
-      return alert("Por favor, llena todos los campos correctamente.");
+      return alert("Please fill in all fields correctly.");
     }
 
     const tx = new Transaction();
@@ -169,7 +168,7 @@ export default function SuiEstateDApp() {
       { transaction: tx },
       {
         onSuccess: () => {
-          alert("✅ ¡Inmueble Creado! Firma exitosa.");
+          alert("✅ Property Created! Signed successfully.");
           setFormData({
             name: "",
             projectId: "",
@@ -187,31 +186,31 @@ export default function SuiEstateDApp() {
         onError: (err) => {
           const errorMessage = err.message || JSON.stringify(err);
 
-          // Busca el código de aborto 5, que corresponde a "No autorizado/No en Whitelist"
+          // Look for abort code 5, corresponding to "Unauthorized/Not Whitelisted"
           if (
             errorMessage.includes("Abort(") &&
             errorMessage.includes(", 5)")
           ) {
             alert(
-              "🛑 ERROR de Permiso: Tu wallet no está en la Whitelist (código 5). Debes ser añadido por el Admin para crear propiedades.",
+              "🛑 PERMISSION ERROR: Your wallet is not on the Whitelist (code 5). You must be added by the Admin to create properties.",
             );
           } else if (errorMessage.includes("EUnauthorized")) {
             alert(
-              "🛑 ERROR de Permiso: Tu wallet no está en la Whitelist. Debes ser añadido para crear propiedades.",
+              "🛑 PERMISSION ERROR: Your wallet is not on the Whitelist. You must be added to create properties.",
             );
           } else {
-            alert("Error de Transacción: " + errorMessage);
+            alert("Transaction Error: " + errorMessage);
           }
         },
       },
     );
   };
 
-  // 2. Manejador para AÑADIR PROMOTOR (Requiere AdminCap)
+  // 2. Handler to ADD PROMOTER (Requires AdminCap)
   const handleAddPromoter = () => {
-    if (!account) return alert("Conecta tu wallet.");
+    if (!account) return alert("Connect your wallet.");
     if (!newPromoterAddress || newPromoterAddress.length < 40)
-      return alert("Ingresa una dirección Sui válida.");
+      return alert("Enter a valid Sui address.");
 
     setIsAddingPromoter(true);
 
@@ -230,40 +229,40 @@ export default function SuiEstateDApp() {
       { transaction: tx },
       {
         onSuccess: (result) => {
-          alert("✅ Promotor añadido. Digest: " + result.digest.slice(0, 6));
+          alert("✅ Promoter added. Digest: " + result.digest.slice(0, 6));
           setNewPromoterAddress("");
           refetchWhitelist();
           setIsAddingPromoter(false);
         },
         onError: (err) => {
           const errorMessage = err.message || JSON.stringify(err);
-          let message = "Error desconocido de Transacción: " + errorMessage;
+          let message = "Unknown Transaction Error: " + errorMessage;
 
-          // 1. 🚨 Detección del Error de Propiedad (El error que te está ocurriendo ahora)
+          // 1. 🚨 Property Error Detection (Current error)
           if (
             errorMessage.includes(
               "Transaction was not signed by the correct sender",
             ) &&
             errorMessage.includes(CONSTANTS.ADMIN_CAP)
           ) {
-            message = `🛑 ERROR: Solo la wallet que posee el AdminCap (${CONSTANTS.ADMIN_CAP.slice(0, 10)}...) puede añadir promotores. Conecta la wallet correcta.`;
+            message = `🛑 ERROR: Only the wallet holding the AdminCap (${CONSTANTS.ADMIN_CAP.slice(0, 10)}...) can add promoters. Connect the correct wallet.`;
           }
-          // 2. Detección de Error de Move (Si ya está en la lista)
-          // Asumiendo que EAlreadyWhitelisted tiene un código de aborto, por ejemplo, 6.
+          // 2. Move Error Detection (Already whitelisted)
+          // Assuming EAlreadyWhitelisted has an abort code, e.g., 6.
           else if (
             errorMessage.includes("EAlreadyWhitelisted") ||
             (errorMessage.includes("Abort(") && errorMessage.includes(", 6)"))
           ) {
-            message = "⚠️ Advertencia: La dirección ya está en la Whitelist.";
+            message = "⚠️ Warning: The address is already whitelisted.";
           }
-          // 3. Detección de Error de Move (Si la wallet firmante no es el dueño del AdminCap)
-          // Nota: Este error debería ser capturado por la detección de propiedad, pero se mantiene como fallback.
+          // 3. Move Error Detection (Signer not AdminCap owner)
+          // Note: This should be caught by property detection, but kept as fallback.
           else if (
             errorMessage.includes("EUnauthorized") ||
             (errorMessage.includes("Abort(") && errorMessage.includes(", 5)"))
           ) {
             message =
-              "🛑 ERROR: La wallet firmante no posee la capacidad de administración (AdminCap).";
+              "🛑 ERROR: The signing wallet does not possess admin capability (AdminCap).";
           }
 
           alert(message);
@@ -273,11 +272,11 @@ export default function SuiEstateDApp() {
     );
   };
 
-  // 3. Manejador para RESERVAR
+  // 3. Handler to RESERVE
   const handleReserve = (propertyId: string) => {
-    if (!account) return alert("Conecta tu wallet");
+    if (!account) return alert("Connect your wallet");
     const tx = new Transaction();
-    // 1 SUI = 1,000,000,000 MIST. Asumiendo que el precio es en MIST
+    // 1 SUI = 1,000,000,000 MIST. Assuming price is in MIST
     const [payment] = tx.splitCoins(tx.gas, [tx.pure.u64(10000)]);
     tx.moveCall({
       target: `${CONSTANTS.PACKAGE_ID}::${CONSTANTS.MODULE}::create_reservation`,
@@ -291,25 +290,25 @@ export default function SuiEstateDApp() {
       { transaction: tx },
       {
         onSuccess: () => {
-          alert("¡Reserva Exitosa!");
+          alert("Reservation Successful!");
           refetchReservations();
         },
         onError: (err) => {
           const errorMessage = err.message || JSON.stringify(err);
           let message = "Error: " + errorMessage;
 
-          // 🚨 Detección del Error 3 (Fondos Insuficientes)
+          // 🚨 Error 3 Detection (Insufficient Funds)
           if (
             errorMessage.includes("Abort(") &&
             errorMessage.includes(", 3)")
           ) {
             message =
-              "🛑 ERROR de Saldo: No tienes suficiente SUI en tu wallet para cubrir el precio de la reserva (código de error 3).";
+              "🛑 BALANCE ERROR: You do not have enough SUI in your wallet to cover the reservation price (error code 3).";
           }
-          // 🚨 Detección de Falla en SplitCoins (similar a saldo insuficiente)
+          // 🚨 SplitCoins Failure Detection
           else if (errorMessage.includes("Insufficient coin balance")) {
             message =
-              "🛑 ERROR de Saldo: Tu moneda de gas (SUI) no tiene suficiente saldo para la reserva.";
+              "🛑 BALANCE ERROR: Your gas coin (SUI) has insufficient balance for the reservation.";
           }
 
           alert(message);
@@ -318,7 +317,7 @@ export default function SuiEstateDApp() {
     );
   };
 
-  // 4. Manejador para FINALIZAR/CANCELAR RESERVA
+  // 4. Handler to FINALIZE/CANCEL RESERVATION
   const handleManageReservation = (
     action: "finalize_reservation" | "cancel_reservation",
     reservationObj: any,
@@ -326,7 +325,7 @@ export default function SuiEstateDApp() {
     const tx = new Transaction();
     const fields =
       reservationObj.content?.fields || reservationObj.data?.content?.fields;
-    if (!fields) return alert("Error leyendo datos");
+    if (!fields) return alert("Error reading data");
     const propertyId = fields.property_id;
     const reservationId =
       reservationObj.objectId || reservationObj.data?.objectId;
@@ -341,18 +340,18 @@ export default function SuiEstateDApp() {
         onSuccess: () => {
           alert(
             action === "finalize_reservation"
-              ? "¡Compra Finalizada!"
-              : "Reserva Cancelada",
+              ? "Purchase Finalized!"
+              : "Reservation Cancelled",
           );
           refetchReservations();
-          refetchEvents(); // Opcional: para que se actualice el estado de la propiedad
+          refetchEvents(); // Optional: update property state
         },
         onError: (err) => alert("Error: " + err.message),
       },
     );
   };
 
-  // --- RENDERIZADO (JSX) ---
+  // --- RENDER (JSX) ---
 
   const notConnectedView = (title: string, desc: string) => (
     <div className="max-w-lg mx-auto mt-8 text-center p-12 border-2 border-dashed border-slate-300 rounded-xl bg-slate-50/50">
@@ -367,15 +366,15 @@ export default function SuiEstateDApp() {
     </div>
   );
 
-  // --- EFECTO PARA CARGAR LOS OBJETOS DE PROPIEDAD COMPLETOS ---
+  // --- EFFECT TO LOAD FULL PROPERTY OBJECTS ---
   useEffect(() => {
     if (events?.data && events.data.length > 0 && suiClient) {
-      // 1. Filtrar y obtener los IDs de todos los eventos PropertyCreated
+      // 1. Filter and get IDs from all PropertyCreated events
       const propertyIds = events.data
         .filter((ev: any) => ev.type.includes("PropertyCreated"))
         .map((ev: any) => ev.parsedJson.property_id);
 
-      // 2. Si hay IDs, obtener los objetos completos
+      // 2. If IDs exist, get full objects
       if (propertyIds.length > 0) {
         suiClient
           .multiGetObjects({
@@ -383,7 +382,7 @@ export default function SuiEstateDApp() {
             options: { showContent: true, showType: true },
           })
           .then((objects) => {
-            // Filtrar solo los objetos que se cargaron correctamente
+            // Filter only successfully loaded objects
             const validProperties = objects.filter(
               (obj) =>
                 obj.data !== null &&
@@ -395,12 +394,12 @@ export default function SuiEstateDApp() {
               ...obj.data?.content?.fields,
             }));
 
-            // 3. Actualizar el estado de la UI
+            // 3. Update UI state
             setProperties(structuredProperties);
           })
           .catch((error) => {
             console.error(
-              "Error al obtener detalles de las propiedades:",
+              "Error fetching property details:",
               error,
             );
           });
@@ -408,14 +407,14 @@ export default function SuiEstateDApp() {
         setProperties([]);
       }
     } else if (!loadingEvents) {
-      // Si la carga terminó y no hay eventos, limpiar las propiedades
+      // If loading finished and no events, clear properties
       setProperties([]);
     }
-  }, [events, suiClient, loadingEvents]); // Dependencias para que se ejecute al cambiar
+  }, [events, suiClient, loadingEvents]);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-blue-100 text-slate-900">
-      {/* FONDO DECORATIVO */}
+      {/* DECORATIVE BACKGROUND */}
       <div className="fixed inset-0 -z-10 h-full w-full bg-white [background:radial-gradient(125%_125%_at_50%_10%,#fff_40%,#63e_100%)] opacity-20"></div>
 
       {/* HEADER */}
@@ -456,7 +455,7 @@ export default function SuiEstateDApp() {
                 value="marketplace"
                 className="flex-1 data-[state=active]:bg-white data-[state=active]:shadow-sm"
               >
-                <ShoppingBag className="w-4 h-4 mr-2" /> Mercado
+                <ShoppingBag className="w-4 h-4 mr-2" /> Marketplace
               </TabsTrigger>
               <TabsTrigger
                 value="my-reservations"
@@ -466,7 +465,7 @@ export default function SuiEstateDApp() {
                   account?.address === CONSTANTS.WALLET_DAPP
                 }
               >
-                <Key className="w-4 h-4 mr-2" /> Mis Reservas
+                <Key className="w-4 h-4 mr-2" /> My Reservations
               </TabsTrigger>
               <TabsTrigger
                 value="admin-create"
@@ -476,7 +475,7 @@ export default function SuiEstateDApp() {
                   account?.address === CONSTANTS.WALLET_DAPP
                 }
               >
-                <Home className="w-4 h-4 mr-2" /> Crear inmueble
+                <Home className="w-4 h-4 mr-2" /> Create Property
               </TabsTrigger>
               <TabsTrigger
                 value="admin-whitelist"
@@ -496,7 +495,7 @@ export default function SuiEstateDApp() {
             {loadingEvents ? (
               <div className="flex flex-col items-center justify-center h-64 text-slate-400">
                 <Loader2 className="w-10 h-10 animate-spin mb-2" />
-                <p>Buscando propiedades en la red...</p>
+                <p>Fetching properties from network...</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -516,7 +515,7 @@ export default function SuiEstateDApp() {
                       key={index}
                       className="group overflow-hidden border-slate-200 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white"
                     >
-                      {/* Imagen de cabecera */}
+                      {/* Header Image */}
                       <div className="relative h-48 w-full overflow-hidden">
                         <img
                           src={bgImage}
@@ -525,17 +524,17 @@ export default function SuiEstateDApp() {
                         />
                         {property.state === 0 && (
                           <Badge className="absolute top-3 right-3 bg-green-600 text-white hover:bg-green-300 shadow-sm">
-                            Disponible
+                            Available
                           </Badge>
                         )}
                         {property.state === 1 && (
                           <Badge className="absolute top-3 right-3 bg-blue-600 text-white hover:bg-blue-300 shadow-sm">
-                            En reserva
+                            Reserved
                           </Badge>
                         )}
                         {property.state === 2 && (
                           <Badge className="absolute top-3 right-3 bg-slate-600 text-white hover:bg-slate-300 shadow-sm">
-                            Vendido
+                            Sold
                           </Badge>
                         )}
                       </div>
@@ -544,19 +543,19 @@ export default function SuiEstateDApp() {
                         <div className="flex justify-between items-start">
                           <div>
                             <CardTitle className="text-lg">
-                              {property.name || "Villa de Lujo"}
+                              {property.name || "Luxury Villa"}
                             </CardTitle>
                             <div className="flex items-center text-slate-400 text-xs mt-1">
                               <MapPin className="w-3 h-3 mr-1" />{" "}
                               {property.physical_address ||
-                                "Ubicación desconocida"}
+                                "Unknown Location"}
                             </div>
                           </div>
                           <div className="text-right">
                             <p className="text-xl font-bold text-blue-600">
                               {Number(property.price ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
                             </p>
-                            <p className="text-xs text-slate-400">Reserva</p>
+                            <p className="text-xs text-slate-400">Reservation</p>
                           </div>
                         </div>
                       </CardHeader>
@@ -565,15 +564,15 @@ export default function SuiEstateDApp() {
                         <div className="flex gap-4 text-sm text-slate-600">
                           <div className="flex items-center">
                             <BedDouble className="w-4 h-4 mr-1 text-blue-500" />{" "}
-                            {property.bedrooms || 2} Habs
+                            {property.bedrooms || 2} Beds
                           </div>
                           <div className="flex items-center">
                             <Bath className="w-4 h-4 mr-1 text-blue-500" />{" "}
-                            {property.bathrooms || 1} Baños
+                            {property.bathrooms || 1} Baths
                           </div>
                         </div>
                         <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-400 truncate">
-                          Promotor:{" "}
+                          Promoter:{" "}
                           <span className="font-mono bg-slate-100 p-1 rounded">
                             {property.promoter.slice(0, 10)}...
                           </span>
@@ -584,10 +583,9 @@ export default function SuiEstateDApp() {
                         <CardFooter className="bg-slate-50 pt-4">
                           {" "}
                           {isOwnedByCurrentUser ? (
-                            // Opción 1: Es el propietario. Oculta el botón.
+                            // Option 1: Is Owner. Hide button.
                             <div className="w-full text-center py-2 bg-blue-100 text-blue-700 font-semibold rounded-lg">
-                              <Wallet className="w-4 h-4 mr-2 inline" /> Es tu
-                              Propiedad
+                              <Wallet className="w-4 h-4 mr-2 inline" /> Your Property
                             </div>
                           ) : (
                             <>
@@ -595,7 +593,7 @@ export default function SuiEstateDApp() {
                                   className="w-full bg-slate-900 hover:bg-blue-600 transition-colors"
                                   onClick={() => setReservationModalOpen(true)}
                                 >
-                                  pre-reserve
+                                  Pre-reserve
                                 </Button><ReservationModal
                                   isOpen={isReservationModalOpen}
                                   onClose={() => setReservationModalOpen(false)}
@@ -611,7 +609,7 @@ export default function SuiEstateDApp() {
             )}
           </TabsContent>
 
-          {/* --- TAB: MIS RESERVAS --- */}
+          {/* --- TAB: MY RESERVATIONS --- */}
           <TabsContent
             value="my-reservations"
             className="animate-in fade-in slide-in-from-bottom-4 duration-500"
@@ -619,15 +617,15 @@ export default function SuiEstateDApp() {
           >
             {!account ? (
               notConnectedView(
-                "Wallet no conectada",
-                "Conecta tu wallet para ver tus reservas activas.",
+                "Wallet not connected",
+                "Connect your wallet to view active reservations.",
               )
             ) : (
               <div className="space-y-4 max-w-3xl mx-auto">
                 {myReservations?.data.length === 0 && (
                   <div className="text-center py-12">
                     <p className="text-slate-500">
-                      No tienes reservas activas. ¡Ve al mercado!
+                      You have no active reservations. Go to the marketplace!
                     </p>
                   </div>
                 )}
@@ -643,21 +641,21 @@ export default function SuiEstateDApp() {
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <h3 className="text-lg font-bold text-slate-800">
-                            Reserva Confirmada
+                            Confirmed Reservation
                           </h3>
                           <p className="text-sm text-slate-500 font-mono">
                             ID: {res.data.objectId.slice(0, 8)}...
                           </p>
                         </div>
                         <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200">
-                          Activa
+                          Active
                         </Badge>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4 my-4 text-sm">
                         <div>
                           <p className="text-slate-400 text-xs">
-                            Propiedad Vinculada
+                            Linked Property
                           </p>
                           <p className="font-medium text-slate-700 font-mono">
                             {res.data.content.fields.property_id.slice(0, 12)}
@@ -665,7 +663,7 @@ export default function SuiEstateDApp() {
                           </p>
                         </div>
                         <div>
-                          <p className="text-slate-400 text-xs">Expira el</p>
+                          <p className="text-slate-400 text-xs">Expires on</p>
                           <p className="font-medium text-slate-700">
                             {new Date(
                               Number(res.data.content.fields.expiration_date),
@@ -684,7 +682,7 @@ export default function SuiEstateDApp() {
                             )
                           }
                         >
-                          ✅ Finalizar Compra
+                          ✅ Finalize Purchase
                         </Button>
                         <Button
                           variant="outline"
@@ -696,7 +694,7 @@ export default function SuiEstateDApp() {
                             )
                           }
                         >
-                          Cancelar
+                          Cancel
                         </Button>
                       </div>
                     </div>
@@ -706,7 +704,7 @@ export default function SuiEstateDApp() {
             )}
           </TabsContent>
 
-          {/* --- TAB: ADMIN - CREAR INMUEBLE (Client-Signed con Whitelist Check) --- */}
+          {/* --- TAB: ADMIN - CREATE PROPERTY (Client-Signed with Whitelist Check) --- */}
           <TabsContent
             value="admin-create"
             className="animate-in fade-in slide-in-from-bottom-4 duration-500"
@@ -714,44 +712,44 @@ export default function SuiEstateDApp() {
           >
             {!account ? (
               notConnectedView(
-                "Panel de Creación",
-                "Conecta tu wallet para acceder al formulario de registro de inmuebles.",
+                "Creation Panel",
+                "Connect your wallet to access the property registration form.",
               )
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-                {/* Sidebar simple */}
+                {/* Simple Sidebar */}
                 <div className="md:col-span-1 space-y-4">
                   <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-sm">
                     <div className="flex items-center gap-2 mb-4">
                       <div className="h-2 w-2 bg-green-500 rounded-full"></div>
                       <h3 className="font-bold text-slate-800">
-                        Estado de Promotor
+                        Promoter Status
                       </h3>
                     </div>
                     <p className="text-sm text-slate-500 mb-4">
-                      Para publicar, tu cuenta debe estar en la **Whitelist**.
-                      La transacción la firmas tú, y pagas el gas.
+                      To publish, your account must be in the **Whitelist**.
+                      You sign the transaction and pay gas.
                     </p>
                     <div className="text-xs bg-slate-50 p-3 rounded border border-slate-100 break-all text-slate-400">
-                      ID de Whitelist: {CONSTANTS.WHITELIST_ID.slice(0, 10)}...
+                      Whitelist ID: {CONSTANTS.WHITELIST_ID.slice(0, 10)}...
                     </div>
                   </div>
                 </div>
 
-                {/* Formulario */}
+                {/* Form */}
                 <Card className="md:col-span-2 border-slate-200 shadow-md">
                   <CardHeader>
-                    <CardTitle>Publicar Nueva Propiedad</CardTitle>
+                    <CardTitle>Publish New Property</CardTitle>
                     <CardDescription>
-                      Ingresa los datos del activo inmobiliario.
+                      Enter the real estate asset details.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="grid gap-2">
-                      <Label htmlFor="name">Nombre del Inmueble</Label>
+                      <Label htmlFor="name">Property Name</Label>
                       <Input
                         id="name"
-                        placeholder="Ej. Penthouse Moderno"
+                        placeholder="Ex. Modern Penthouse"
                         className="border-slate-300 focus-visible:ring-blue-500"
                         value={formData.name}
                         onChange={(e) =>
@@ -763,11 +761,11 @@ export default function SuiEstateDApp() {
                     <div className="grid grid-cols-3 gap-2">
                       <div className="grid gap-2">
                         <Label htmlFor="promoterName">
-                          Nombre del promotor
+                          Promoter Name
                         </Label>
                         <Input
                           id="promoterName"
-                          placeholder="Ej. Danube"
+                          placeholder="Ex. Danube"
                           className="border-slate-300 focus-visible:ring-blue-500"
                           value={formData.promoterName}
                           onChange={(e) =>
@@ -779,7 +777,7 @@ export default function SuiEstateDApp() {
                         />
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="projectId">Id del proyecto</Label>
+                        <Label htmlFor="projectId">Project ID</Label>
                         <Input
                           id="projectId"
                           type="number"
@@ -795,10 +793,10 @@ export default function SuiEstateDApp() {
                         />
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="projectName">Nombre del projecto</Label>
+                        <Label htmlFor="projectName">Project Name</Label>
                         <Input
                           id="projectName"
-                          placeholder="Ej. Mercedes"
+                          placeholder="Ex. Mercedes"
                           className="border-slate-300 focus-visible:ring-blue-500"
                           value={formData.projectName}
                           onChange={(e) =>
@@ -813,7 +811,7 @@ export default function SuiEstateDApp() {
 
                     <div className="grid grid-cols-3 gap-4">
                       <div className="grid gap-2">
-                        <Label htmlFor="currency">Moneda</Label>
+                        <Label htmlFor="currency">Currency</Label>
                         <Input
                           id="currency"
                           placeholder="USD"
@@ -828,7 +826,7 @@ export default function SuiEstateDApp() {
                         />
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="price">Precio (MIST)</Label>
+                        <Label htmlFor="price">Price (MIST)</Label>
                         <Input
                           id="price"
                           type="number"
@@ -841,7 +839,7 @@ export default function SuiEstateDApp() {
                         />
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="physical_address">Ubicación</Label>
+                        <Label htmlFor="physical_address">Location</Label>
                         <Input
                           id="physical_address"
                           placeholder="Dubai, Dubai"
@@ -916,11 +914,11 @@ export default function SuiEstateDApp() {
                       {isSigning ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />{" "}
-                          Esperando Firma...
+                          Waiting for Signature...
                         </>
                       ) : (
                         <>
-                          <Home className="w-4 h-4 mr-2" /> Crear Inmueble
+                          <Home className="w-4 h-4 mr-2" /> Create Property
                         </>
                       )}
                     </Button>
@@ -930,7 +928,7 @@ export default function SuiEstateDApp() {
             )}
           </TabsContent>
 
-          {/* --- TAB: GESTIÓN DE WHITELIST --- */}
+          {/* --- TAB: WHITELIST MANAGEMENT --- */}
           <TabsContent
             value="admin-whitelist"
             className="animate-in fade-in slide-in-from-bottom-4 duration-500"
@@ -938,30 +936,28 @@ export default function SuiEstateDApp() {
           >
             {!account ? (
               notConnectedView(
-                "Panel de Whitelist",
-                "Conecta la wallet que posee el AdminCap para gestionar la lista de promotores.",
+                "Whitelist Panel",
+                "Connect the wallet holding the AdminCap to manage the promoter list.",
               )
             ) : (
               <div className="max-w-3xl mx-auto space-y-6">
                 {" "}
-                {/* <--- Añadido space-y-6 aquí para separar elementos */}
                 <Card className="border-slate-200 shadow-md">
                   <CardHeader className="border-b border-slate-100 pb-4">
                     <CardTitle className="flex items-center gap-2">
-                      <Lock className="w-5 h-5 text-slate-500" /> Gestión de
-                      Whitelist
+                      <Lock className="w-5 h-5 text-slate-500" /> Whitelist Management
                     </CardTitle>
                     <CardDescription>
-                      Añade wallets que tendrán permiso para crear nuevos
-                      inmuebles. Solo el poseedor del AdminCap puede realizar
-                      esta acción.
+                      Add wallets that will have permission to create new
+                      properties. Only the AdminCap holder can perform
+                      this action.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-6 space-y-6">
-                    {/* SECCIÓN 1: FORMULARIO PARA AÑADIR */}
+                    {/* SECTION 1: ADD FORM */}
                     <div className="grid gap-2">
                       <Label htmlFor="promoter-address">
-                        Dirección del Promotor a Añadir
+                        Promoter Address to Add
                       </Label>
                       <div className="flex gap-2">
                         <Input
@@ -982,29 +978,29 @@ export default function SuiEstateDApp() {
                             <Loader2 className="w-4 h-4 animate-spin" />
                           ) : (
                             <>
-                              <UserPlus className="w-4 h-4 mr-1" /> Añadir
+                              <UserPlus className="w-4 h-4 mr-1" /> Add
                             </>
                           )}
                         </Button>
                       </div>
                     </div>
 
-                    {/* SECCIÓN 2: LISTADO DE PROMOTORES AÑADIDO AQUÍ 👇 */}
+                    {/* SECTION 2: PROMOTER LIST */}
                     <Card className="shadow-none border border-slate-200">
                       <CardHeader className="border-b border-slate-100">
                         <h3 className="text-lg font-semibold text-slate-800 flex items-center">
                           <List className="w-5 h-5 mr-2 text-slate-500" />
-                          Promotores en Whitelist ({whiteList.length})
+                          Whitelisted Promoters ({whiteList.length})
                         </h3>
                         <CardDescription>
-                          Direcciones autorizadas para crear propiedades.
+                          Authorized addresses to create properties.
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="pt-6">
                         {loadingPromoters ? (
                           <div className="flex items-center justify-center py-6 text-slate-400">
                             <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                            Cargando lista de promotores...
+                            Loading promoter list...
                           </div>
                         ) : whiteList.length > 0 ? (
                           <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
@@ -1019,29 +1015,29 @@ export default function SuiEstateDApp() {
                           </div>
                         ) : (
                           <p className="text-slate-500 italic py-4 text-center">
-                            No hay promotores registrados en la Whitelist.
+                            No promoters registered in the Whitelist.
                           </p>
                         )}
                       </CardContent>
                     </Card>
-                    {/* FIN DEL LISTADO DE PROMOTORES 👆 */}
+                    {/* END OF PROMOTER LIST */}
 
-                    {/* SECCIÓN 3: REQUISITO DE AUTORIDAD (MANTENER) */}
+                    {/* SECTION 3: AUTHORITY REQUIREMENT */}
                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 text-sm">
                       <h4 className="font-semibold text-blue-800 flex items-center mb-2">
                         <Key className="w-4 h-4 mr-2" />
-                        Requisito de Autoridad
+                        Authority Requirement
                       </h4>
                       <p className="text-blue-700">
-                        La transacción debe ser firmada por la dirección que
-                        posee el objeto **AdminCap** (`
+                        The transaction must be signed by the address holding
+                        the **AdminCap** object (`
                         {CONSTANTS.ADMIN_CAP.slice(0, 10)}...`).
                       </p>
                     </div>
                   </CardContent>
                   <CardFooter className="pt-4 border-t border-slate-100">
                     <div className="text-sm text-slate-500">
-                      Estado del Objeto Whitelist:{" "}
+                      Whitelist Object Status:{" "}
                       <span className="font-mono">
                         {whitelistObject?.data?.objectId?.slice(0, 10)}...
                       </span>
