@@ -49,7 +49,13 @@ const CONSTANTS = {
 };
 
 const getPropertyImage = (id: string) => {
-  return "https://images.unsplash.com/photo-1600596542815-205db30ddec7?auto=format&fit=crop&w=800&q=80";
+
+  const floorplans = ["f14baf4e-6fef-4375-9484-6a0fdb3b0cd2", "add1cd80-270d-486e-865d-bd15c20fc6f2","0c4fd9c6-8711-4f1a-8e4c-cbcff5b0f34b"];
+
+  // If an explicit id is provided, use it; otherwise pick a random floorplan id
+ const imageId = floorplans[Math.floor(Math.random() * floorplans.length)];
+
+  return `${process.env.NEXT_PUBLIC_BASE_IMAGE_URL}/${imageId}/medium.webp`;
 };
 
 export default function SuiEstateDApp() {
@@ -422,10 +428,10 @@ export default function SuiEstateDApp() {
             </div>
             <div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
-                SuiEstate
+                Instant Reserver
               </h1>
               <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-                Hackathon Demo
+                Marbella Sui Move Hackathon 2025
               </span>
             </div>
           </div>
@@ -437,11 +443,10 @@ export default function SuiEstateDApp() {
       <main className="container mx-auto px-4 py-10 max-w-6xl">
         <div className="mb-10 text-center space-y-2">
           <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900">
-            El futuro de las Bienes Raíces en{" "}
-            <span className="text-blue-600">Sui</span>
+            Instant Reserver
           </h2>
-          <p className="text-slate-500 max-w-2xl mx-auto">
-            Reserva propiedades de forma instantánea, segura y transparente.
+          <p className="text-slate-500 text-2xl max-w-2xl mx-auto">
+            <span className="text-[#6db3ff] font-bold">SUI</span>-Powered Blockchain-Secure Instant Property Deposit
           </p>
         </div>
 
